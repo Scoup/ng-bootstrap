@@ -1,11 +1,13 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector, ComponentFactoryResolver } from '@angular/core';
 import { NgbModalStack } from './modal-stack';
 /**
  * A service to open modal windows. Creating a modal is straightforward: create a template and pass it as an argument to
  * the "open" method!
  */
 var NgbModal = (function () {
-    function NgbModal(_modalStack) {
+    function NgbModal(_moduleCFR, _injector, _modalStack) {
+        this._moduleCFR = _moduleCFR;
+        this._injector = _injector;
         this._modalStack = _modalStack;
     }
     /**
@@ -28,13 +30,15 @@ var NgbModal = (function () {
        */
     function (content, options) {
         if (options === void 0) { options = {}; }
-        return this._modalStack.open(content, options);
+        return this._modalStack.open(this._moduleCFR, this._injector, content, options);
     };
     NgbModal.decorators = [
         { type: Injectable },
     ];
     /** @nocollapse */
     NgbModal.ctorParameters = function () { return [
+        { type: ComponentFactoryResolver, },
+        { type: Injector, },
         { type: NgbModalStack, },
     ]; };
     return NgbModal;

@@ -4415,21 +4415,20 @@ var modal_backdrop_1 = __webpack_require__(52);
 var modal_window_1 = __webpack_require__(53);
 var modal_ref_1 = __webpack_require__(56);
 var NgbModalStack = (function () {
-    function NgbModalStack(document, _applicationRef, _injector, _componentFactoryResolver) {
+    function NgbModalStack(_applicationRef, _injector, _componentFactoryResolver, document) {
         this._applicationRef = _applicationRef;
         this._injector = _injector;
         this._componentFactoryResolver = _componentFactoryResolver;
         this._windowAttributes = ['backdrop', 'keyboard', 'size', 'windowClass'];
         this._document = document;
     }
-    NgbModalStack.prototype.open = function (content, options) {
-        this._buildFactories();
+    NgbModalStack.prototype.open = function (moduleCFR, contentInjector, content, options) {
         var containerEl = util_1.isDefined(options.container) ? this._document.querySelector(options.container) : this._document.body;
         if (!containerEl) {
             throw new Error("The specified modal container \"" + options.container + "\" was not found in the DOM.");
         }
         var activeModal = new modal_ref_1.NgbActiveModal();
-        var contentRef = this._getContentRef(options.injector || this._injector, content, activeModal);
+        var contentRef = this._getContentRef(moduleCFR, options.injector || contentInjector, content, activeModal);
         var backdropCmptRef = options.backdrop !== false ? this._attachBackdrop(containerEl) : null;
         var windowCmptRef = this._attachWindowComponent(containerEl, contentRef);
         var ngbModalRef = new modal_ref_1.NgbModalRef(windowCmptRef, contentRef, backdropCmptRef, options.beforeDismiss);
@@ -4438,30 +4437,16 @@ var NgbModalStack = (function () {
         this._applyWindowOptions(windowCmptRef.instance, options);
         return ngbModalRef;
     };
-    // Cant build factories on constructor when using lazy loading
-    NgbModalStack.prototype._buildFactories = function () {
-        this._buildBackdropFactory();
-        this._buildWindowFactory();
-    };
-    NgbModalStack.prototype._buildBackdropFactory = function () {
-        if (this._backdropFactory == null) {
-            this._backdropFactory = this._componentFactoryResolver.resolveComponentFactory(modal_backdrop_1.NgbModalBackdrop);
-        }
-    };
-    NgbModalStack.prototype._buildWindowFactory = function () {
-        if (this._windowFactory == null) {
-            this._windowFactory = this._windowFactory =
-                this._componentFactoryResolver.resolveComponentFactory(modal_window_1.NgbModalWindow);
-        }
-    };
     NgbModalStack.prototype._attachBackdrop = function (containerEl) {
-        var backdropCmptRef = this._backdropFactory.create(this._injector);
+        var backdropFactory = this._componentFactoryResolver.resolveComponentFactory(modal_backdrop_1.NgbModalBackdrop);
+        var backdropCmptRef = backdropFactory.create(this._injector);
         this._applicationRef.attachView(backdropCmptRef.hostView);
         containerEl.appendChild(backdropCmptRef.location.nativeElement);
         return backdropCmptRef;
     };
     NgbModalStack.prototype._attachWindowComponent = function (containerEl, contentRef) {
-        var windowCmptRef = this._windowFactory.create(this._injector, contentRef.nodes);
+        var windowFactory = this._componentFactoryResolver.resolveComponentFactory(modal_window_1.NgbModalWindow);
+        var windowCmptRef = windowFactory.create(this._injector, contentRef.nodes);
         this._applicationRef.attachView(windowCmptRef.hostView);
         containerEl.appendChild(windowCmptRef.location.nativeElement);
         return windowCmptRef;
@@ -4473,7 +4458,7 @@ var NgbModalStack = (function () {
             }
         });
     };
-    NgbModalStack.prototype._getContentRef = function (contentInjector, content, context) {
+    NgbModalStack.prototype._getContentRef = function (moduleCFR, contentInjector, content, context) {
         if (!content) {
             return new popup_1.ContentRef([]);
         }
@@ -4484,7 +4469,7 @@ var NgbModalStack = (function () {
             return this._createFromString(content);
         }
         else {
-            return this._createFromComponent(contentInjector, content, context);
+            return this._createFromComponent(moduleCFR, contentInjector, content, context);
         }
     };
     NgbModalStack.prototype._createFromTemplateRef = function (content, context) {
@@ -4494,11 +4479,10 @@ var NgbModalStack = (function () {
     };
     NgbModalStack.prototype._createFromString = function (content) {
         var component = this._document.createTextNode("" + content);
-        this._document.body.appendChild(component);
         return new popup_1.ContentRef([[component]]);
     };
-    NgbModalStack.prototype._createFromComponent = function (contentInjector, content, context) {
-        var contentCmptFactory = this._componentFactoryResolver.resolveComponentFactory(content);
+    NgbModalStack.prototype._createFromComponent = function (moduleCFR, contentInjector, content, context) {
+        var contentCmptFactory = moduleCFR.resolveComponentFactory(content);
         var modalContentInjector = core_1.ReflectiveInjector.resolveAndCreate([{ provide: modal_ref_1.NgbActiveModal, useValue: context }], contentInjector);
         var componentRef = contentCmptFactory.create(modalContentInjector);
         this._applicationRef.attachView(componentRef.hostView);
@@ -4506,9 +4490,9 @@ var NgbModalStack = (function () {
     };
     NgbModalStack = __decorate([
         core_1.Injectable(),
-        __param(0, core_1.Inject(common_1.DOCUMENT)),
-        __metadata("design:paramtypes", [Object, core_1.ApplicationRef, core_1.Injector,
-            core_1.ComponentFactoryResolver])
+        __param(3, core_1.Inject(common_1.DOCUMENT)),
+        __metadata("design:paramtypes", [core_1.ApplicationRef, core_1.Injector,
+            core_1.ComponentFactoryResolver, Object])
     ], NgbModalStack);
     return NgbModalStack;
 }());
@@ -4636,7 +4620,9 @@ var modal_stack_1 = __webpack_require__(55);
  * the "open" method!
  */
 var NgbModal = (function () {
-    function NgbModal(_modalStack) {
+    function NgbModal(_moduleCFR, _injector, _modalStack) {
+        this._moduleCFR = _moduleCFR;
+        this._injector = _injector;
         this._modalStack = _modalStack;
     }
     /**
@@ -4647,11 +4633,11 @@ var NgbModal = (function () {
      */
     NgbModal.prototype.open = function (content, options) {
         if (options === void 0) { options = {}; }
-        return this._modalStack.open(content, options);
+        return this._modalStack.open(this._moduleCFR, this._injector, content, options);
     };
     NgbModal = __decorate([
         core_1.Injectable(),
-        __metadata("design:paramtypes", [modal_stack_1.NgbModalStack])
+        __metadata("design:paramtypes", [core_1.ComponentFactoryResolver, core_1.Injector, modal_stack_1.NgbModalStack])
     ], NgbModal);
     return NgbModal;
 }());
